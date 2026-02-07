@@ -34,7 +34,12 @@ export async function run(inlineConfig?: SponsorkitConfig, t = consola) {
   const fullConfig = await loadConfig(inlineConfig)
   const config = fullConfig as Required<SponsorkitMainConfig>
   const dir = resolve(process.cwd(), config.outputDir)
-  const cacheFile = resolve(dir, config.cacheFile)
+  const cacheFile = resolve(
+    dir,
+    config.mode === 'sponsoring'
+      ? config.cacheFileSponsoring
+      : config.cacheFile,
+  )
 
   const providers = resolveProviders(config.providers || guessProviders(config))
 

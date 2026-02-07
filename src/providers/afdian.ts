@@ -7,6 +7,9 @@ import { $fetch } from 'ofetch'
 export const AfdianProvider: Provider = {
   name: 'afdian',
   fetchSponsors(config) {
+    if (config.mode === 'sponsoring')
+      throw new Error('Afdian provider does not support `mode: "sponsoring"` yet')
+
     return fetchAfdianSponsors(config.afdian)
   },
 }

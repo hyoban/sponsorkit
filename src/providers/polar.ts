@@ -4,6 +4,9 @@ import { ofetch } from 'ofetch'
 export const PolarProvider: Provider = {
   name: 'polar',
   fetchSponsors(config) {
+    if (config.mode === 'sponsoring')
+      throw new Error('Polar provider does not support `mode: "sponsoring"` yet')
+
     return fetchPolarSponsors(config.polar?.token || config.token!, config.polar?.organization)
   },
 }

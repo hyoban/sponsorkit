@@ -22,6 +22,10 @@ Create `.env` file with:
 ; Token requires the `read:user` and `read:org` scopes.
 SPONSORKIT_GITHUB_TOKEN=
 SPONSORKIT_GITHUB_LOGIN=
+; Optional data mode:
+; - sponsor: people sponsoring you (default)
+; - sponsoring: people you are sponsoring (currently GitHub only)
+SPONSORKIT_MODE=sponsor
 
 ; Patreon provider.
 ; Create v2 API key at https://www.patreon.com/portal/registration/register-clients
@@ -75,6 +79,11 @@ Create `sponsorkit.config.js` file with:
 import { defineConfig, tierPresets } from 'sponsorkit'
 
 export default defineConfig({
+  // Data mode:
+  // - sponsor: people sponsoring you (default)
+  // - sponsoring: people you are sponsoring (currently GitHub only)
+  mode: 'sponsor',
+
   // Providers configs
   github: {
     login: 'antfu',

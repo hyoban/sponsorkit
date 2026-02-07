@@ -58,6 +58,9 @@ export async function loadConfig(inlineConfig: SponsorkitConfig = {}): Promise<R
     },
   } as Required<SponsorkitConfig>
 
+  if (!['sponsor', 'sponsoring'].includes(resolved.mode))
+    throw new Error(`Invalid mode: ${resolved.mode}. Expected "sponsor" or "sponsoring".`)
+
   return resolved
 }
 
