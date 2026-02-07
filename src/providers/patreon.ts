@@ -4,8 +4,10 @@ import { $fetch } from 'ofetch'
 export const PatreonProvider: Provider = {
   name: 'patreon',
   fetchSponsors(config) {
-    if (config.mode === 'sponsoring')
-      throw new Error('Patreon provider does not support `mode: "sponsoring"` yet')
+    if (config.mode === 'sponsoring') {
+      console.warn('[sponsorkit] Patreon provider does not support `mode: "sponsoring"` yet')
+      return Promise.resolve([])
+    }
 
     return fetchPatreonSponsors(config.patreon?.token || config.token!)
   },
