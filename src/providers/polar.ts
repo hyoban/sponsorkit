@@ -4,8 +4,8 @@ import { ofetch } from 'ofetch'
 export const PolarProvider: Provider = {
   name: 'polar',
   fetchSponsors(config) {
-    if (config.mode === 'sponsoring') {
-      console.warn('[sponsorkit] Polar provider does not support `mode: "sponsoring"` yet')
+    if (config.mode === 'sponsees') {
+      console.warn('[sponsorkit] Polar provider does not support `mode: "sponsees"` yet')
       return Promise.resolve([])
     }
 

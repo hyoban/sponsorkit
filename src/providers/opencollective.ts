@@ -10,8 +10,8 @@ interface SocialLink {
 export const OpenCollectiveProvider: Provider = {
   name: 'opencollective',
   fetchSponsors(config) {
-    if (config.mode === 'sponsoring') {
-      console.warn('[sponsorkit] OpenCollective provider does not support `mode: "sponsoring"` yet')
+    if (config.mode === 'sponsees') {
+      console.warn('[sponsorkit] OpenCollective provider does not support `mode: "sponsees"` yet')
       return Promise.resolve([])
     }
 

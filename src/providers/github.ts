@@ -40,7 +40,7 @@ const graphql = String.raw
 export const GitHubProvider: Provider = {
   name: 'github',
   fetchSponsors(config) {
-    if (config.mode === 'sponsoring') {
+    if (config.mode === 'sponsees') {
       return fetchGitHubSponsoringAsSponsorships(
         config.github?.token || config.token!,
         config.github?.login || config.login!,
@@ -364,7 +364,7 @@ export async function fetchGitHubSponsoringAsSponsorships(
   login: string,
   type: GitHubAccountType,
 ): Promise<Sponsorship[]> {
-  // Sponsoring mode always loads full history regardless of active status.
+  // Sponsees mode always loads full history regardless of active status.
   const records = await fetchGitHubSponsoring(token, login, type, false)
   const recordsBySponsorable = groupSponsoringRecordsByLogin(records)
   const totalBySponsorable = await fetchTotalCentsBySponsorable(
@@ -391,7 +391,7 @@ export async function fetchGitHubSponsoringAsSponsorships(
         },
       },
       isOneTime: summary.isOneTime,
-      // In sponsoring mode, ranking/tiers are based on lifetime sponsored amount.
+      // In sponsees mode, ranking/tiers are based on lifetime sponsored amount.
       monthlyDollars: totalInCents / 100,
       privacyLevel: summary.latest.privacyLevel,
       tierName: summary.latest.tierName,

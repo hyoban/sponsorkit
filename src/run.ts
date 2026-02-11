@@ -36,8 +36,8 @@ export async function run(inlineConfig?: SponsorkitConfig, t = consola) {
   const dir = resolve(process.cwd(), config.outputDir)
   const cacheFile = resolve(
     dir,
-    config.mode === 'sponsoring'
-      ? config.cacheFileSponsoring
+    config.mode === 'sponsees'
+      ? config.cacheFileSponsees
       : config.cacheFile,
   )
 
