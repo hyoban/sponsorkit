@@ -78,7 +78,7 @@ export type OutputFormat = typeof outputFormats[number]
 export type ProviderName = 'github' | 'patreon' | 'opencollective' | 'afdian' | 'polar' | 'liberapay'
 
 export type GitHubAccountType = 'user' | 'organization'
-export type SponsorshipMode = 'sponsor' | 'sponsoring'
+export type SponsorshipMode = 'sponsors' | 'sponsees'
 
 export interface ProvidersConfig {
   github?: {
@@ -216,7 +216,7 @@ export interface SponsorkitRenderOptions {
   /**
    * Name of exported files
    *
-   * @default 'sponsors'
+   * @default config.mode
    */
   name?: string
 
@@ -314,10 +314,10 @@ export interface SponsorkitRenderOptions {
 export interface SponsorkitConfig extends ProvidersConfig, SponsorkitRenderOptions {
   /**
    * Data mode:
-   * - `sponsor`: people sponsoring you
-   * - `sponsoring`: people you are sponsoring
+   * - `sponsors`: people sponsoring you
+   * - `sponsees`: people you are sponsoring
    *
-   * @default 'sponsor'
+   * @default 'sponsors'
    */
   mode?: SponsorshipMode
 
@@ -349,11 +349,11 @@ export interface SponsorkitConfig extends ProvidersConfig, SponsorkitRenderOptio
   cacheFile?: string
 
   /**
-   * Path to cache file used when `mode` is `sponsoring`.
+   * Path to cache file used when `mode` is `sponsees`.
    *
-   * @default './sponsorkit/.cache.sponsoring.json'
+   * @default './sponsorkit/.cache.sponsees.json'
    */
-  cacheFileSponsoring?: string
+  cacheFileSponsees?: string
 
   /**
    * Directory of output files.

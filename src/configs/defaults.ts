@@ -45,14 +45,13 @@ text {
 `
 
 export const defaultConfig: SponsorkitConfig = {
-  mode: 'sponsor',
+  mode: 'sponsors',
   width: 800,
   outputDir: './sponsorkit',
   cacheFile: '.cache.json',
-  cacheFileSponsoring: '.cache.sponsoring.json',
+  cacheFileSponsees: '.cache.sponsees.json',
   formats: ['json', 'svg', 'png'],
   tiers: defaultTiers,
-  name: 'sponsors',
   includePrivate: false,
   svgInlineCSS: defaultInlineCSS,
 }

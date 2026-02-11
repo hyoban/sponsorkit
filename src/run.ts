@@ -36,8 +36,8 @@ export async function run(inlineConfig?: SponsorkitConfig, t = consola) {
   const dir = resolve(process.cwd(), config.outputDir)
   const cacheFile = resolve(
     dir,
-    config.mode === 'sponsoring'
-      ? config.cacheFileSponsoring
+    config.mode === 'sponsees'
+      ? config.cacheFileSponsees
       : config.cacheFile,
   )
 
@@ -46,7 +46,7 @@ export async function run(inlineConfig?: SponsorkitConfig, t = consola) {
   if (config.renders?.length) {
     const names = new Set<string>()
     config.renders.forEach((renderOptions, idx) => {
-      const name = renderOptions.name || 'sponsors'
+      const name = renderOptions.name || fullConfig.name || fullConfig.mode
       if (names.has(name))
         throw new Error(`Duplicate render name: ${name} at index ${idx}`)
       names.add(name)
