@@ -52,7 +52,6 @@ export const defaultConfig: SponsorkitConfig = {
   cacheFileSponsees: '.cache.sponsees.json',
   formats: ['json', 'svg', 'png'],
   tiers: defaultTiers,
-  name: 'sponsors',
   includePrivate: false,
   svgInlineCSS: defaultInlineCSS,
 }

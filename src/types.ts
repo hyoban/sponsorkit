@@ -216,7 +216,7 @@ export interface SponsorkitRenderOptions {
   /**
    * Name of exported files
    *
-   * @default 'sponsors'
+   * @default config.mode
    */
   name?: string
 
