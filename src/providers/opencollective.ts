@@ -360,14 +360,11 @@ function makeSubscriptionsQuery(
   githubHandle?: string,
   offset?: number,
   activeOnly?: boolean,
-  sponseesMode = false,
 ) {
   const activeOrNot = activeOnly ? 'onlyActiveSubscriptions: true' : 'onlySubscriptions: true'
-  const filter = sponseesMode ? 'OUTGOING' : 'INCOMING'
-  const accountField = sponseesMode ? 'toAccount' : 'fromAccount'
   return graphql`{
     account(${makeAccountQueryPartial(id, slug, githubHandle)}) {
-      orders(limit: 1000, offset:${offset}, ${activeOrNot}, filter: ${filter}) {
+      orders(limit: 1000, offset:${offset}, ${activeOrNot}, filter: INCOMING) {
         nodes {
           id
           createdAt
@@ -383,7 +380,7 @@ function makeSubscriptionsQuery(
             value
           }
           createdAt
-          ${accountField} {
+          fromAccount {
             name
             id
             slug
