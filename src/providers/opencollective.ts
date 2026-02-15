@@ -193,7 +193,7 @@ function createSponsorFromOrder(order: any, sponseesMode = false): [string, Spon
 
   let monthlyDollars: number = order.amount.value
   if (sponseesMode)
-    monthlyDollars = order.totalDonations?.value ?? order.amount.value
+    monthlyDollars = Math.abs(order.totalDonations?.value ?? order.amount.value)
   else if (order.status !== 'ACTIVE')
     monthlyDollars = -1
 
@@ -245,7 +245,7 @@ function createSponsorFromTransaction(transaction: any, excludeOrders: string[],
 
   let monthlyDollars: number = transaction.amount.value
   if (sponseesMode) {
-    monthlyDollars = transaction.amount.value
+    monthlyDollars = Math.abs(transaction.amount.value)
   }
   else if (transaction.order?.status !== 'ACTIVE') {
     const firstDayOfCurrentMonth = new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)
