@@ -94,15 +94,8 @@ export async function fetchOpenCollectiveSponsors(
         'Content-Type': 'application/json',
       },
     }) as any
-    if (data.errors?.length)
-      throw new Error(`OpenCollective API error:\n${JSON.stringify(data.errors, null, 2)}`)
-
-    const transactions = data.data?.account?.transactions
-    if (!transactions)
-      throw new Error('Invalid OpenCollective response: `account.transactions` is missing')
-
-    const nodes = transactions.nodes
-    const totalCount = transactions.totalCount
+    const nodes = data.data.account.transactions.nodes
+    const totalCount = data.data.account.transactions.totalCount
 
     monthlyTransactions.push(...(nodes || []))
     if ((nodes.length) !== 0) {
