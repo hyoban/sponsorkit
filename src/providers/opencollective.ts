@@ -108,8 +108,8 @@ export async function fetchOpenCollectiveSponsors(
   } while (offset)
 
   const sponsorships: [string, Sponsorship][] = sponsors
-    .map(order => createSponsorFromOrder(order, sponseesMode))
-    .filter((sponsorship): sponsorship is [string, Sponsorship] => sponsorship !== null && sponsorship !== undefined)
+    .map(createSponsorFromOrder)
+    .filter((sponsorship): sponsorship is [string, Sponsorship] => sponsorship !== null)
 
   const monthlySponsorships: [string, Sponsorship][] = monthlyTransactions
     .map(t => createSponsorFromTransaction(t, sponsorships.map(i => i[1].raw.id), sponseesMode))
@@ -168,19 +168,13 @@ export async function fetchOpenCollectiveSponsors(
   return result
 }
 
-function createSponsorFromOrder(order: any, sponseesMode = false): [string, Sponsorship] | undefined {
-  const account = sponseesMode ? order.toAccount : order.fromAccount
-  if (!account?.slug)
-    return undefined
-
-  const slug = account.slug
+function createSponsorFromOrder(order: any): [string, Sponsorship] | undefined {
+  const slug = order.fromAccount.slug
   if (slug === 'github-sponsors') // ignore github sponsors
     return undefined
 
   let monthlyDollars: number = order.amount.value
-  if (sponseesMode)
-    monthlyDollars = Math.abs(order.totalDonations?.value ?? order.amount.value)
-  else if (order.status !== 'ACTIVE')
+  if (order.status !== 'ACTIVE')
     monthlyDollars = -1
 
   else if (order.frequency === 'MONTHLY')
@@ -194,27 +188,23 @@ function createSponsorFromOrder(order: any, sponseesMode = false): [string, Spon
 
   const sponsor: Sponsorship = {
     sponsor: {
-      name: account.name,
-      type: getAccountType(account.type),
+      name: order.fromAccount.name,
+      type: getAccountType(order.fromAccount.type),
       login: slug,
-      avatarUrl: account.imageUrl,
-      websiteUrl: normalizeUrl(getBestUrl(account.socialLinks || [])),
+      avatarUrl: order.fromAccount.imageUrl,
+      websiteUrl: normalizeUrl(getBestUrl(order.fromAccount.socialLinks)),
       linkUrl: `https://opencollective.com/${slug}`,
-      socialLogins: getSocialLogins(account.socialLinks || [], slug),
+      socialLogins: getSocialLogins(order.fromAccount.socialLinks, slug),
     },
     isOneTime: order.frequency === 'ONETIME',
     monthlyDollars,
-    privacyLevel: sponseesMode ? 'PUBLIC' : (account.isIncognito ? 'PRIVATE' : 'PUBLIC'),
+    privacyLevel: order.fromAccount.isIncognito ? 'PRIVATE' : 'PUBLIC',
     tierName: order.tier?.name,
-    createdAt: sponseesMode
-      ? order.createdAt
-      : order.frequency === 'ONETIME'
-        ? order.createdAt
-        : order.order?.createdAt,
+    createdAt: order.frequency === 'ONETIME' ? order.createdAt : order.order?.createdAt,
     raw: order,
   }
 
-  return [account.id || slug, sponsor]
+  return [order.fromAccount.id, sponsor]
 }
 
 function createSponsorFromTransaction(transaction: any, excludeOrders: string[], sponseesMode = false): [string, Sponsorship] | undefined {
