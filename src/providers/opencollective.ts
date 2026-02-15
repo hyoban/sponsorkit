@@ -55,7 +55,7 @@ export async function fetchOpenCollectiveSponsors(
   if (!sponseesMode) {
     offset = 0
     do {
-      const query = makeSubscriptionsQuery(id, slug, githubHandle, offset, !includePastSponsors, sponseesMode)
+      const query = makeSubscriptionsQuery(id, slug, githubHandle, offset, !includePastSponsors)
       const data = await $fetch(API, {
         method: 'POST',
         body: { query },
@@ -64,15 +64,8 @@ export async function fetchOpenCollectiveSponsors(
           'Content-Type': 'application/json',
         },
       }) as any
-      if (data.errors?.length)
-        throw new Error(`OpenCollective API error:\n${JSON.stringify(data.errors, null, 2)}`)
-
-      const orders = data.data?.account?.orders
-      if (!orders)
-        throw new Error('Invalid OpenCollective response: `account.orders` is missing')
-
-      const nodes = orders.nodes
-      const totalCount = orders.totalCount
+      const nodes = data.data.account.orders.nodes
+      const totalCount = data.data.account.orders.totalCount
 
       sponsors.push(...(nodes || []))
 
