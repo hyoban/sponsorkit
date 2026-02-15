@@ -11,8 +11,15 @@ export const OpenCollectiveProvider: Provider = {
   name: 'opencollective',
   fetchSponsors(config) {
     if (config.mode === 'sponsees') {
-      console.warn('[sponsorkit] OpenCollective provider does not support `mode: "sponsees"` yet')
-      return Promise.resolve([])
+      const slug = config.opencollective?.slug || config.opencollective?.id
+      return fetchOpenCollectiveSponsors(
+        config.opencollective?.key,
+        undefined,
+        slug,
+        config.opencollective?.githubHandle,
+        true,
+        true,
+      )
     }
 
     return fetchOpenCollectiveSponsors(
@@ -34,40 +41,50 @@ export async function fetchOpenCollectiveSponsors(
   slug?: string,
   githubHandle?: string,
   includePastSponsors?: boolean,
+  sponseesMode = false,
 ): Promise<Sponsorship[]> {
   if (!key)
     throw new Error('OpenCollective api key is required')
   if (!slug && !id && !githubHandle)
     throw new Error('OpenCollective collective id or slug or GitHub handle is required')
+  includePastSponsors ||= sponseesMode
 
   const sponsors: any[] = []
   const monthlyTransactions: any[] = []
   let offset
-  offset = 0
+  if (!sponseesMode) {
+    offset = 0
+    do {
+      const query = makeSubscriptionsQuery(id, slug, githubHandle, offset, !includePastSponsors, sponseesMode)
+      const data = await $fetch(API, {
+        method: 'POST',
+        body: { query },
+        headers: {
+          'Api-Key': `${key}`,
+          'Content-Type': 'application/json',
+        },
+      }) as any
+      if (data.errors?.length)
+        throw new Error(`OpenCollective API error:\n${JSON.stringify(data.errors, null, 2)}`)
 
-  do {
-    const query = makeSubscriptionsQuery(id, slug, githubHandle, offset, !includePastSponsors)
-    const data = await $fetch(API, {
-      method: 'POST',
-      body: { query },
-      headers: {
-        'Api-Key': `${key}`,
-        'Content-Type': 'application/json',
-      },
-    }) as any
-    const nodes = data.data.account.orders.nodes
-    const totalCount = data.data.account.orders.totalCount
+      const orders = data.data?.account?.orders
+      if (!orders)
+        throw new Error('Invalid OpenCollective response: `account.orders` is missing')
 
-    sponsors.push(...(nodes || []))
+      const nodes = orders.nodes
+      const totalCount = orders.totalCount
 
-    if ((nodes.length) !== 0) {
-      if (totalCount > offset + nodes.length)
-        offset += nodes.length
-      else
-        offset = undefined
-    }
-    else { offset = undefined }
-  } while (offset)
+      sponsors.push(...(nodes || []))
+
+      if ((nodes.length) !== 0) {
+        if (totalCount > offset + nodes.length)
+          offset += nodes.length
+        else
+          offset = undefined
+      }
+      else { offset = undefined }
+    } while (offset)
+  }
 
   offset = 0
   do {
@@ -75,7 +92,7 @@ export async function fetchOpenCollectiveSponsors(
     const dateFrom: Date | undefined = includePastSponsors
       ? undefined
       : new Date(now.getFullYear(), now.getMonth(), 1)
-    const query = makeTransactionsQuery(id, slug, githubHandle, offset, dateFrom)
+    const query = makeTransactionsQuery(id, slug, githubHandle, offset, dateFrom, undefined, sponseesMode)
     const data = await $fetch(API, {
       method: 'POST',
       body: { query },
@@ -84,8 +101,15 @@ export async function fetchOpenCollectiveSponsors(
         'Content-Type': 'application/json',
       },
     }) as any
-    const nodes = data.data.account.transactions.nodes
-    const totalCount = data.data.account.transactions.totalCount
+    if (data.errors?.length)
+      throw new Error(`OpenCollective API error:\n${JSON.stringify(data.errors, null, 2)}`)
+
+    const transactions = data.data?.account?.transactions
+    if (!transactions)
+      throw new Error('Invalid OpenCollective response: `account.transactions` is missing')
+
+    const nodes = transactions.nodes
+    const totalCount = transactions.totalCount
 
     monthlyTransactions.push(...(nodes || []))
     if ((nodes.length) !== 0) {
@@ -98,12 +122,32 @@ export async function fetchOpenCollectiveSponsors(
   } while (offset)
 
   const sponsorships: [string, Sponsorship][] = sponsors
-    .map(createSponsorFromOrder)
-    .filter((sponsorship): sponsorship is [string, Sponsorship] => sponsorship !== null)
+    .map(order => createSponsorFromOrder(order, sponseesMode))
+    .filter((sponsorship): sponsorship is [string, Sponsorship] => sponsorship !== null && sponsorship !== undefined)
 
   const monthlySponsorships: [string, Sponsorship][] = monthlyTransactions
-    .map(t => createSponsorFromTransaction(t, sponsorships.map(i => i[1].raw.id)))
+    .map(t => createSponsorFromTransaction(t, sponsorships.map(i => i[1].raw.id), sponseesMode))
     .filter((sponsorship): sponsorship is [string, Sponsorship] => sponsorship !== null && sponsorship !== undefined)
+
+  if (sponseesMode) {
+    const processed: Map<string, Sponsorship> = sponsorships
+      .concat(monthlySponsorships)
+      .reduce((map, [id, sponsor]) => {
+        const existingSponsor = map.get(id)
+        if (existingSponsor) {
+          existingSponsor.monthlyDollars += sponsor.monthlyDollars
+          existingSponsor.isOneTime = Boolean(existingSponsor.isOneTime && sponsor.isOneTime)
+          if (sponsor.createdAt && (!existingSponsor.createdAt || sponsor.createdAt.localeCompare(existingSponsor.createdAt) < 0))
+            existingSponsor.createdAt = sponsor.createdAt
+        }
+        else {
+          map.set(id, sponsor)
+        }
+        return map
+      }, new Map())
+
+    return Array.from(processed.values())
+  }
 
   const transactionsBySponsorId: Map<string, Sponsorship> = monthlySponsorships.reduce((map, [id, sponsor]) => {
     const existingSponsor = map.get(id)
@@ -138,13 +182,19 @@ export async function fetchOpenCollectiveSponsors(
   return result
 }
 
-function createSponsorFromOrder(order: any): [string, Sponsorship] | undefined {
-  const slug = order.fromAccount.slug
+function createSponsorFromOrder(order: any, sponseesMode = false): [string, Sponsorship] | undefined {
+  const account = sponseesMode ? order.toAccount : order.fromAccount
+  if (!account?.slug)
+    return undefined
+
+  const slug = account.slug
   if (slug === 'github-sponsors') // ignore github sponsors
     return undefined
 
   let monthlyDollars: number = order.amount.value
-  if (order.status !== 'ACTIVE')
+  if (sponseesMode)
+    monthlyDollars = order.totalDonations?.value ?? order.amount.value
+  else if (order.status !== 'ACTIVE')
     monthlyDollars = -1
 
   else if (order.frequency === 'MONTHLY')
@@ -158,27 +208,35 @@ function createSponsorFromOrder(order: any): [string, Sponsorship] | undefined {
 
   const sponsor: Sponsorship = {
     sponsor: {
-      name: order.fromAccount.name,
-      type: getAccountType(order.fromAccount.type),
+      name: account.name,
+      type: getAccountType(account.type),
       login: slug,
-      avatarUrl: order.fromAccount.imageUrl,
-      websiteUrl: normalizeUrl(getBestUrl(order.fromAccount.socialLinks)),
+      avatarUrl: account.imageUrl,
+      websiteUrl: normalizeUrl(getBestUrl(account.socialLinks || [])),
       linkUrl: `https://opencollective.com/${slug}`,
-      socialLogins: getSocialLogins(order.fromAccount.socialLinks, slug),
+      socialLogins: getSocialLogins(account.socialLinks || [], slug),
     },
     isOneTime: order.frequency === 'ONETIME',
     monthlyDollars,
-    privacyLevel: order.fromAccount.isIncognito ? 'PRIVATE' : 'PUBLIC',
+    privacyLevel: sponseesMode ? 'PUBLIC' : (account.isIncognito ? 'PRIVATE' : 'PUBLIC'),
     tierName: order.tier?.name,
-    createdAt: order.frequency === 'ONETIME' ? order.createdAt : order.order?.createdAt,
+    createdAt: sponseesMode
+      ? order.createdAt
+      : order.frequency === 'ONETIME'
+        ? order.createdAt
+        : order.order?.createdAt,
     raw: order,
   }
 
-  return [order.fromAccount.id, sponsor]
+  return [account.id || slug, sponsor]
 }
 
-function createSponsorFromTransaction(transaction: any, excludeOrders: string[]): [string, Sponsorship] | undefined {
-  const slug = transaction.fromAccount.slug
+function createSponsorFromTransaction(transaction: any, excludeOrders: string[], sponseesMode = false): [string, Sponsorship] | undefined {
+  const account = sponseesMode ? transaction.toAccount : transaction.fromAccount
+  if (!account?.slug)
+    return undefined
+
+  const slug = account.slug
   if (slug === 'github-sponsors') // ignore github sponsors
     return undefined
 
@@ -186,7 +244,10 @@ function createSponsorFromTransaction(transaction: any, excludeOrders: string[])
     return undefined
 
   let monthlyDollars: number = transaction.amount.value
-  if (transaction.order?.status !== 'ACTIVE') {
+  if (sponseesMode) {
+    monthlyDollars = transaction.amount.value
+  }
+  else if (transaction.order?.status !== 'ACTIVE') {
     const firstDayOfCurrentMonth = new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1)
     if (new Date(transaction.createdAt) < firstDayOfCurrentMonth)
       monthlyDollars = -1
@@ -200,23 +261,27 @@ function createSponsorFromTransaction(transaction: any, excludeOrders: string[])
 
   const sponsor: Sponsorship = {
     sponsor: {
-      name: transaction.fromAccount.name,
-      type: getAccountType(transaction.fromAccount.type),
+      name: account.name,
+      type: getAccountType(account.type),
       login: slug,
-      avatarUrl: transaction.fromAccount.imageUrl,
-      websiteUrl: normalizeUrl(getBestUrl(transaction.fromAccount.socialLinks)),
+      avatarUrl: account.imageUrl,
+      websiteUrl: normalizeUrl(getBestUrl(account.socialLinks || [])),
       linkUrl: `https://opencollective.com/${slug}`,
-      socialLogins: getSocialLogins(transaction.fromAccount.socialLinks, slug),
+      socialLogins: getSocialLogins(account.socialLinks || [], slug),
     },
     isOneTime: transaction.order?.frequency === 'ONETIME',
     monthlyDollars,
-    privacyLevel: transaction.fromAccount.isIncognito ? 'PRIVATE' : 'PUBLIC',
-    tierName: transaction.tier?.name,
-    createdAt: transaction.order?.frequency === 'ONETIME' ? transaction.createdAt : transaction.order?.createdAt,
+    privacyLevel: sponseesMode ? 'PUBLIC' : (account.isIncognito ? 'PRIVATE' : 'PUBLIC'),
+    tierName: transaction.order?.tier?.name || transaction.tier?.name,
+    createdAt: sponseesMode
+      ? transaction.createdAt
+      : transaction.order?.frequency === 'ONETIME'
+        ? transaction.createdAt
+        : transaction.order?.createdAt,
     raw: transaction,
   }
 
-  return [transaction.fromAccount.id, sponsor]
+  return [account.id || slug, sponsor]
 }
 
 /**
@@ -252,13 +317,16 @@ function makeTransactionsQuery(
   offset?: number,
   dateFrom?: Date,
   dateTo?: Date,
+  sponseesMode = false,
 ) {
   const accountQueryPartial = makeAccountQueryPartial(id, slug, githubHandle)
   const dateFromParam = dateFrom ? `, dateFrom: "${dateFrom.toISOString()}"` : ''
   const dateToParam = dateTo ? `, dateTo: "${dateTo.toISOString()}"` : ''
+  const type = sponseesMode ? 'DEBIT' : 'CREDIT'
+  const accountField = sponseesMode ? 'toAccount' : 'fromAccount'
   return graphql`{
     account(${accountQueryPartial}) {
-      transactions(limit: 1000, offset:${offset}, type: CREDIT ${dateFromParam} ${dateToParam}) {
+      transactions(limit: 1000, offset:${offset}, type: ${type} ${dateFromParam} ${dateToParam}) {
         offset
         limit
         totalCount
@@ -281,7 +349,7 @@ function makeTransactionsQuery(
           amount {
             value
           }
-          fromAccount {
+          ${accountField} {
             name
             id
             slug
@@ -306,11 +374,14 @@ function makeSubscriptionsQuery(
   githubHandle?: string,
   offset?: number,
   activeOnly?: boolean,
+  sponseesMode = false,
 ) {
   const activeOrNot = activeOnly ? 'onlyActiveSubscriptions: true' : 'onlySubscriptions: true'
+  const filter = sponseesMode ? 'OUTGOING' : 'INCOMING'
+  const accountField = sponseesMode ? 'toAccount' : 'fromAccount'
   return graphql`{
     account(${makeAccountQueryPartial(id, slug, githubHandle)}) {
-      orders(limit: 1000, offset:${offset}, ${activeOrNot}, filter: INCOMING) {
+      orders(limit: 1000, offset:${offset}, ${activeOrNot}, filter: ${filter}) {
         nodes {
           id
           createdAt
@@ -326,7 +397,7 @@ function makeSubscriptionsQuery(
             value
           }
           createdAt
-          fromAccount {
+          ${accountField} {
             name
             id
             slug

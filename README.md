@@ -24,7 +24,7 @@ SPONSORKIT_GITHUB_TOKEN=
 SPONSORKIT_GITHUB_LOGIN=
 ; Optional data mode:
 ; - sponsors: people sponsoring you (default)
-; - sponsees: people you are sponsoring (currently GitHub only)
+; - sponsees: people you have sponsored, including past sponsorships
 SPONSORKIT_MODE=sponsors
 
 ; Patreon provider.
@@ -81,7 +81,7 @@ import { defineConfig, tierPresets } from 'sponsorkit'
 export default defineConfig({
   // Data mode:
   // - sponsors: people sponsoring you (default)
-  // - sponsees: people you are sponsoring (currently GitHub only)
+  // - sponsees: people you have sponsored, including past sponsorships
   mode: 'sponsors',
 
   // Providers configs
