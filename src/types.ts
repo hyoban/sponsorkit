@@ -315,7 +315,7 @@ export interface SponsorkitConfig extends ProvidersConfig, SponsorkitRenderOptio
   /**
    * Data mode:
    * - `sponsors`: people sponsoring you
-   * - `sponsees`: people you are sponsoring
+   * - `sponsees`: people you have sponsored, including past sponsorships
    *
    * @default 'sponsors'
    */
